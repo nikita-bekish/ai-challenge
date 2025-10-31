@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import express from "express";
+import fs from "fs";
 import OpenAI from "openai";
 
 dotenv.config();
@@ -53,6 +54,15 @@ app.post("/summarize", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Ошибка при сворачивании контекста" });
+  }
+});
+
+app.get("/debug/memory", (req, res) => {
+  try {
+    const data = fs.readFileSync("./summaryMemory.json", "utf8");
+    res.type("application/json").send(data);
+  } catch (e) {
+    res.status(500).send({ error: "Файл не найден или не читается" });
   }
 });
 
