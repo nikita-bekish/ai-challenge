@@ -12,14 +12,14 @@ const client = new OpenAI({
 });
 
 app.post("/ask", async (req, res) => {
-  const { prompt } = req.body;
+  const { messages } = req.body;
 
   try {
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: prompt },
+        ...messages,
       ],
     });
 
