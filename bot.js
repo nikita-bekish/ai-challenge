@@ -3,7 +3,13 @@ import fs from "fs";
 // import fetch from "node-fetch";
 import TelegramBot from "node-telegram-bot-api";
 
-dotenv.config();
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: ".env.prod" });
+} else {
+  dotenv.config({ path: ".env.dev" });
+}
+
+console.log("🚀 Запуск бота в режиме:", process.env.MODE || "development");
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
@@ -29,6 +35,7 @@ function loadSummary() {
 }
 
 function saveSummary(data) {
+  console.log("💾 Сохранение summaryMemory.json", data);
   fs.writeFileSync(storePath, JSON.stringify(data, null, 2));
 }
 
@@ -42,14 +49,6 @@ bot.on("message", async (msg) => {
 
   if (!memory.has(chatId)) memory.set(chatId, []);
 
-  // if (userText.toLowerCase().startsWith("меня зовут")) {
-  //   const name = userText.replace(/меня зовут/i, "").trim();
-  //   // longTermMemory[chatId] = { name };
-  //   // saveStore(longTermMemory);
-  //   return bot.sendMessage(chatId, `Приятно познакомиться, ${name}!`);
-  // }
-
-  // const userInfo = longTermMemory[chatId];
   const context = memory.get(chatId);
   context.push({ role: "user", content: userText });
 
@@ -62,21 +61,13 @@ bot.on("message", async (msg) => {
       ]
     : context;
 
-  // const fullPrompt = userInfo
-  //   ? `Пользователя зовут ${userInfo.name}. ${userText}`
-  //   : userText;
-
-  // context.push({ role: "user", content: fullPrompt });
-
-  // if (context.length > 6) context.shift();
-
   try {
     const response = await fetch(`${process.env.API_URL}/ask`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ messages: context }),
+      body: JSON.stringify({ messages: history }),
     });
 
     const data = await response.json();
@@ -86,13 +77,14 @@ bot.on("message", async (msg) => {
 
     context.push({ role: "assistant", content: answer });
 
-    if (context.length >= 10) {
+    if (context.length >= 4) {
       const summaryRes = await fetch(`${process.env.API_URL}/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ history: context }),
       });
       const summaryData = await summaryRes.json();
+      console.log("🔍 Суммарная память:", summaryData);
       summaryMemory[chatId] = summaryData.summary;
       saveSummary(summaryMemory);
 

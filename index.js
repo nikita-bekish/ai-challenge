@@ -50,7 +50,7 @@ app.post("/summarize", async (req, res) => {
       ],
     });
 
-    res.json({ summaty: response.choices[0].message.content });
+    res.json({ summary: response.choices[0].message.content });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Ошибка при сворачивании контекста" });
