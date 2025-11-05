@@ -37,7 +37,7 @@ If you are unsure, key_points output an empty string "" or empty array [] for th
     res.json({ answer: response.choices[0].message.content });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Ошибка при обращении к OpenAI API" });
+    res.status(500).json({ error: "Ошибка при обращении к OpenAI API!" });
   }
 });
 
