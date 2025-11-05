@@ -26,6 +26,7 @@ jobs:
       - name: Upload .env file
         run: |
           echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" > .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
 
       - name: Debug SSH key
         run: |
@@ -48,6 +49,7 @@ jobs:
             node_modules
             .github
             README.md
+            .env
 
       - name: Restart PM2 app
         uses: appleboy/ssh-action@v1.0.3

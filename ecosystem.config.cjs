@@ -1,13 +1,18 @@
 module.exports = {
   apps: [
     {
-      name: "ai-bot",
-      script: "npm",
-      args: "start",
+      name: "ai-server-api",
+      script: "index.js", // или твой стартовый файл
+      cwd: "/root/ai-challenge",
       env: {
         NODE_ENV: "production",
       },
-      env_production: {
+    },
+    {
+      name: "ai-bot",
+      script: "bot.js", // или твой файл бота
+      cwd: "/root/ai-challenge",
+      env: {
         NODE_ENV: "production",
       },
     },
