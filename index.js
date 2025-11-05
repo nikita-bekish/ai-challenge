@@ -1,6 +1,5 @@
 import dotenv from "dotenv";
 import express from "express";
-import fs from "fs";
 import OpenAI from "openai";
 
 dotenv.config();
@@ -58,41 +57,6 @@ Do not include JSON or extra commentary.
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Ошибка при обращении к OpenAI API" });
-  }
-});
-
-app.post("/summarize", async (req, res) => {
-  const { history } = req.body;
-
-  try {
-    const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Ты помогаешь создавать краткое резюме диалога. Обобщи ключевые факты, имена и темы без пересказа деталей.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify(history),
-        },
-      ],
-    });
-
-    res.json({ summary: response.choices[0].message.content });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Ошибка при сворачивании контекста" });
-  }
-});
-
-app.get("/debug/memory", (req, res) => {
-  try {
-    const data = fs.readFileSync("./summaryMemory.json", "utf8");
-    res.type("application/json").send(data);
-  } catch (e) {
-    res.status(500).send({ error: "Файл не найден или не читается" });
   }
 });
 
