@@ -13,7 +13,34 @@ const client = new OpenAI({
 });
 
 app.post("/ask", async (req, res) => {
-  const { messages } = req.body;
+  const { messages, format = "json" } = req.body;
+
+  console.log("🔍 Формат ответа:", format);
+
+  const systemPrompts = {
+    json: `
+You are a professional AI that always responds in strict JSON format.
+Do not include explanations or markdown.
+Return only a valid JSON object matching this schema:
+{ "title": "string", "summary": "string", "key_points": ["string", "string", "string"] }
+If unsure, output empty strings or arrays to keep the structure valid.
+    `,
+    markdown: `
+You are a professional AI that always responds in clean Markdown.
+Format your answer as follows:
+
+# {title}
+
+**Summary:** {summary}
+
+## Key Points
+- {point1}
+- {point2}
+- {point3}
+
+Do not include JSON or extra commentary.
+    `,
+  };
 
   try {
     const response = await client.chat.completions.create({
@@ -22,13 +49,7 @@ app.post("/ask", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `
-You are a professional AI that always responds in strict JSON format.
-Do not include explanations or markdown.
-Always return a valid JSON object matching the user’s requested schema.
-When you reply, return the result in the following JSON format: { "title": "string", "summary": "string", "key_points": ["string", "string", "string"] }
-If you are unsure, key_points output an empty string "" or empty array [] for that field.
-          `,
+          content: systemPrompts[format] || systemPrompts.json,
         },
         ...messages,
       ],

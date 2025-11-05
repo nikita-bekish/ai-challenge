@@ -41,11 +41,24 @@ function saveSummary(data) {
 
 let summaryMemory = loadSummary();
 
+const userFormats = new Map(); // chatId → "json" | "markdown"
+
+bot.onText(/\/format (json|markdown)/i, (msg, match) => {
+  console.log("🔍 Формат ответа установлен:", match[1]);
+  const chatId = msg.chat.id;
+  const format = match[1].toLowerCase();
+  userFormats.set(chatId, format);
+  bot.sendMessage(
+    chatId,
+    `✅ Формат ответа установлен: ${format.toUpperCase()}`
+  );
+});
+
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const userText = msg.text?.trim();
 
-  if (!userText) return;
+  if (!userText || userText.startsWith("/format")) return;
 
   if (!memory.has(chatId)) memory.set(chatId, []);
 
@@ -61,19 +74,23 @@ bot.on("message", async (msg) => {
       ]
     : context;
 
+  const format = userFormats.get(chatId) || "json";
+
   try {
     const response = await fetch(`${process.env.API_URL}/ask`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ messages: history }),
+      body: JSON.stringify({ messages: history, format }),
     });
 
     const data = await response.json();
     const answer = data.answer || "⚠️ Нет ответа от модели";
 
-    bot.sendMessage(chatId, answer);
+    bot.sendMessage(chatId, answer, {
+      parse_mode: format === "markdown" ? "Markdown" : undefined,
+    });
 
     context.push({ role: "assistant", content: answer });
 
