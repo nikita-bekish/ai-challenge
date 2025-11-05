@@ -90,7 +90,7 @@ bot.on("message", async (msg) => {
 
       // очищаем старую историю
       memory.set(chatId, []);
-      bot.sendMessage(chatId, "💾 Обновил внутреннюю память диалога.");
+      // bot.sendMessage(chatId, "💾 Обновил внутреннюю память диалогаааа.");
     }
   } catch (error) {
     console.error(error);

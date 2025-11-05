@@ -18,8 +18,18 @@ app.post("/ask", async (req, res) => {
   try {
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
+      temperature: 0,
       messages: [
-        { role: "system", content: "You are a helpful assistant." },
+        {
+          role: "system",
+          content: `
+You are a professional AI that always responds in strict JSON format.
+Do not include explanations or markdown.
+Always return a valid JSON object matching the user’s requested schema.
+When you reply, return the result in the following JSON format: { "title": "string", "summary": "string", "key_points": ["string", "string", "string"] }
+If you are unsure, key_points output an empty string "" or empty array [] for that field.
+          `,
+        },
         ...messages,
       ],
     });
