@@ -1,0 +1,52 @@
+name: Deploy to VDSina
+
+on:
+  push:
+    branches:
+      - main
+    workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and Deploy to VDSina
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Deploy files to VDSina via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "."
+          target: "/root/ai-challenge"
+          rm: false
+          overwrite: true
+          # Exclude unnecessary files for faster deployment
+          exclude: |
+            .git*
+            node_modules
+            .github
+            README.md
+    
+    - name: Restart PM2 app
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /root/ai-challenge
+            npm ci --omit=dev
+            pm2 restart all
