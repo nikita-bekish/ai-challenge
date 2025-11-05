@@ -15,7 +15,7 @@ const client = new OpenAI({
 app.post("/ask", async (req, res) => {
   const { messages, format = "json" } = req.body;
 
-  console.log("🔍 Формат ответа:", format);
+  console.log("🔍 Формат ответа:", format, "messages:", messages);
 
   const systemPrompts = {
     json: `
@@ -23,7 +23,6 @@ You are a professional AI that always responds in strict JSON format.
 Do not include explanations or markdown.
 Return only a valid JSON object matching this schema:
 { "title": "string", "summary": "string", "key_points": ["string", "string", "string"] }
-If unsure, output empty strings or arrays to keep the structure valid.
     `,
     markdown: `
 You are a professional AI that always responds in clean Markdown.
