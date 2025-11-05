@@ -23,6 +23,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Debug SSH key
+        run: |
+          echo "${{ secrets.SSH_KEY }}" | head -n 5
+          echo "Key loaded OK"
+
       - name: Deploy files to VDSina via SCP
         uses: appleboy/scp-action@v0.1.4
         with:
