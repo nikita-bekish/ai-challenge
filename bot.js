@@ -12,21 +12,39 @@ console.log("🚀 Запуск бота в режиме:", process.env.MODE || "
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const memory = new Map(); // хранит временную историю сообщений в рамках одного диалога
 const userFormats = new Map(); // chatId → "json" | "markdown"
+const userModes = new Map();
 
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
 
   const welcomeMessage = `
-👋 Привет! Я бот, который помогает формировать ответы в нужном тебе формате.
+👋 Привет! Я бот с двумя режимами:
 
-Ты можешь выбрать формат вывода:
-- \`/format json\` — получать ответы в виде JSON  
-- \`/format markdown\` — получать ответы в виде Markdown
+1️⃣ *Обычный режим* — задавай вопросы, выбирай формат:
+- /format json
+- /format markdown
 
-Просто напиши свой вопрос, и я отвечу в выбранном формате.
+2️⃣ *Режим ТЗ (/spec)* — создаёт структурированные документы (технические задания, спецификации и т.д.) с автоостановкой.
+
+Напиши /spec чтобы начать работу с ИИ-агентом для составления ТЗ.
 `;
 
   bot.sendMessage(chatId, welcomeMessage, { parse_mode: "Markdown" });
+});
+
+bot.onText(/\/spec/i, (msg) => {
+  const chatId = msg.chat.id;
+  userModes.set(chatId, "spec");
+  bot.sendMessage(
+    chatId,
+    "📄 Режим ТЗ активирован. Опиши проект, а я соберу все детали и создам готовый документ.\n\nОтправь /exit чтобы выйти из этого режима."
+  );
+});
+
+bot.onText(/\/exit/i, (msg) => {
+  const chatId = msg.chat.id;
+  userModes.set(chatId, "default");
+  bot.sendMessage(chatId, "🚪 Возврат в обычный режим общения.");
 });
 
 bot.onText(/\/format (json|markdown)/i, (msg, match) => {
@@ -46,15 +64,54 @@ bot.on("message", async (msg) => {
   if (
     !userText ||
     userText.startsWith("/format") ||
-    userText.startsWith("/start")
+    userText.startsWith("/start") ||
+    userText.startsWith("/spec") ||
+    userText.startsWith("/exit")
   )
     return;
+
+  const mode = userModes.get(chatId) || "default";
+  bot.sendChatAction(chatId, "typing");
+
+  if (mode === "spec") {
+    // =========================
+    // РЕЖИМ СОСТАВЛЕНИЯ ТЗ
+    // =========================
+    const context = memory.get(chatId) || [];
+    context.push({ role: "user", content: userText });
+    memory.set(chatId, context);
+
+    try {
+      const response = await fetch(`${process.env.API_URL}/autonomous-agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userMessages: context }),
+      });
+      const data = await response.json();
+      const answer = data.answer || "⚠️ Нет ответа от модели";
+
+      bot.sendMessage(chatId, answer);
+
+      // если агент завершил работу — сбрасываем режим
+      if (answer.includes("✅ Task complete. Stopping now")) {
+        userModes.set(chatId, "default");
+        memory.delete(chatId);
+      }
+    } catch (error) {
+      console.error(error);
+      bot.sendMessage(chatId, "🚨 Ошибка при обращении к серверу.");
+    }
+
+    return;
+  }
+
+  // =========================
+  // ОБЫЧНЫЙ РЕЖИМ
+  // =========================
 
   if (!memory.has(chatId)) memory.set(chatId, []);
   const context = memory.get(chatId);
   context.push({ role: "user", content: userText });
-
-  bot.sendChatAction(chatId, "typing");
 
   const format = userFormats.get(chatId) || "json";
 
@@ -85,4 +142,4 @@ bot.on("message", async (msg) => {
   }
 });
 
-console.log("🤖 Бот без summary-памяти запущен!");
+console.log("🤖 Бот с режимом ТЗ запущен!");
