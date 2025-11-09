@@ -1,11 +1,10 @@
-import dotenv from "dotenv";
 import TelegramBot from "node-telegram-bot-api";
 
-if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: ".env.prod" });
-} else {
-  dotenv.config({ path: ".env.dev" });
-}
+// if (process.env.NODE_ENV === "production") {
+//   dotenv.config({ path: ".env.prod" });
+// } else {
+//   dotenv.config({ path: ".env.dev" });
+// }
 
 console.log("🚀 Запуск бота в режиме:", process.env.MODE || "development");
 
