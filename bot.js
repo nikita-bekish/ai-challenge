@@ -1,21 +1,23 @@
-import dotenv from "dotenv";
 import TelegramBot from "node-telegram-bot-api";
 
-if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: ".env.prod" });
-} else {
-  dotenv.config({ path: ".env.dev" });
-}
+// if (process.env.NODE_ENV === "production") {
+//   dotenv.config({ path: ".env.prod" });
+// } else {
+//   dotenv.config({ path: ".env.dev" });
+// }
+dotenv.config();
 
 console.log("🚀 Запуск бота в режиме:", process.env.MODE || "development");
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const memory = new Map(); // хранит временную историю сообщений в рамках одного диалога
-const userFormats = new Map(); // chatId → "json" | "markdown"
+const userFormats = new Map(); // chatId → "json" | "markdown" | "default"
 const userModes = new Map();
+const userProviders = new Map(); // chatId → "openai" | "yandex"
 
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
+  const currentProvider = userProviders.get(chatId) || "openai";
 
   const welcomeMessage = `
 👋 Привет! Я бот с двумя режимами:
@@ -23,8 +25,11 @@ bot.onText(/\/start/i, (msg) => {
 1️⃣ *Обычный режим* — задавай вопросы, выбирай формат:
 - /format json
 - /format markdown
+- /format default
 
 2️⃣ *Режим ТЗ (/spec)* — создаёт структурированные документы (технические задания, спецификации и т.д.) с автоостановкой.
+
+Сейчас активен *${currentProvider.toUpperCase()}*.\n\nВведите /provider, чтобы изменить.
 
 Напиши /spec чтобы начать работу с ИИ-агентом для составления ТЗ.
 `;
@@ -47,14 +52,99 @@ bot.onText(/\/exit/i, (msg) => {
   bot.sendMessage(chatId, "🚪 Возврат в обычный режим общения.");
 });
 
-bot.onText(/\/format (json|markdown)/i, (msg, match) => {
+bot.onText(/\/format(?:\s+(json|markdown|default))?/i, (msg, match) => {
   const chatId = msg.chat.id;
-  const format = match[1].toLowerCase();
-  userFormats.set(chatId, format);
-  bot.sendMessage(
-    chatId,
-    `✅ Формат ответа установлен: ${format.toUpperCase()}`
-  );
+  const arg = match[1]?.toLowerCase();
+
+  if (!arg) {
+    const current = userFormats.get(chatId) || "default";
+    return bot.sendMessage(
+      chatId,
+      `ℹ️ Текущий формат: *${current.toUpperCase()}*
+Доступные варианты: /format json | /format markdown | /format default`,
+      { parse_mode: "Markdown" }
+    );
+  }
+
+  userFormats.set(chatId, arg);
+
+  const human =
+    arg === "json"
+      ? "JSON (строгий)"
+      : arg === "markdown"
+      ? "Markdown"
+      : "DEFAULT (свободный текст)";
+
+  bot.sendMessage(chatId, `✅ Формат ответа установлен: *${human}*`, {
+    parse_mode: "Markdown",
+  });
+});
+
+bot.onText(/\/provider/i, (msg) => {
+  const chatId = msg.chat.id;
+  const current = userProviders.get(chatId) || "openai";
+
+  const buttons = {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: current === "openai" ? "✅ OpenAI (активен)" : "OpenAI",
+            callback_data: "set_provider_openai",
+          },
+          {
+            text: current === "yandex" ? "✅ YandexGPT (активен)" : "YandexGPT",
+            callback_data: "set_provider_yandex",
+          },
+        ],
+      ],
+    },
+  };
+
+  bot.sendMessage(chatId, `⚙️ Текущий провайдер: *${current.toUpperCase()}*`, {
+    parse_mode: "Markdown",
+    ...buttons,
+  });
+});
+
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const data = query.data;
+
+  if (data === "set_provider_openai" || data === "set_provider_yandex") {
+    const provider = data.includes("openai") ? "openai" : "yandex";
+    userProviders.set(chatId, provider);
+
+    bot.answerCallbackQuery(query.id, {
+      text: `Провайдер изменён: ${provider.toUpperCase()}`,
+      show_alert: false,
+    });
+
+    const buttons = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: provider === "openai" ? "✅ OpenAI (активен)" : "OpenAI",
+              callback_data: "set_provider_openai",
+            },
+            {
+              text:
+                provider === "yandex" ? "✅ YandexGPT (активен)" : "YandexGPT",
+              callback_data: "set_provider_yandex",
+            },
+          ],
+        ],
+      },
+    };
+
+    bot.editMessageText(`⚙️ Текущий провайдер: *${provider.toUpperCase()}*`, {
+      chat_id: chatId,
+      message_id: query.message.message_id,
+      parse_mode: "Markdown",
+      ...buttons,
+    });
+  }
 });
 
 bot.on("message", async (msg) => {
@@ -64,6 +154,7 @@ bot.on("message", async (msg) => {
   if (
     !userText ||
     userText.startsWith("/format") ||
+    userText.startsWith("/provider") ||
     userText.startsWith("/start") ||
     userText.startsWith("/spec") ||
     userText.startsWith("/exit")
@@ -113,13 +204,16 @@ bot.on("message", async (msg) => {
   const context = memory.get(chatId);
   context.push({ role: "user", content: userText });
 
-  const format = userFormats.get(chatId) || "json";
+  const rawFormat = userFormats.get(chatId) || "default";
+  const format =
+    rawFormat === "json" || rawFormat === "markdown" ? rawFormat : null;
+  const provider = userProviders.get(chatId) || "openai";
 
   try {
     const response = await fetch(`${process.env.API_URL}/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: context, format }),
+      body: JSON.stringify({ messages: context, format, provider }),
     });
 
     const data = await response.json();
