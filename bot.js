@@ -13,6 +13,7 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const memory = new Map(); // хранит временную историю сообщений в рамках одного диалога
 const userFormats = new Map(); // chatId → "json" | "markdown" | "default"
 const userModes = new Map();
+const userProviders = new Map(); // chatId → "openai" | "yandex"
 
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
@@ -76,6 +77,29 @@ bot.onText(/\/format(?:\s+(json|markdown|default))?/i, (msg, match) => {
   });
 });
 
+bot.onText(/\/provider(?:\s+(openai|yandex))?/i, (msg, match) => {
+  const chatId = msg.chat.id;
+  const provider = match[1]?.toLowerCase();
+
+  if (!provider) {
+    const current = userProviders.get(chatId) || "openai";
+    return bot.sendMessage(
+      chatId,
+      `⚙️ Текущий провайдер: *${current.toUpperCase()}*\nДоступные: /provider openai | /provider yandex`,
+      { parse_mode: "Markdown" }
+    );
+  }
+
+  userProviders.set(chatId, provider);
+  bot.sendMessage(
+    chatId,
+    `✅ Провайдер установлен: *${provider.toUpperCase()}*`,
+    {
+      parse_mode: "Markdown",
+    }
+  );
+});
+
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const userText = msg.text?.trim();
@@ -83,6 +107,7 @@ bot.on("message", async (msg) => {
   if (
     !userText ||
     userText.startsWith("/format") ||
+    userText.startsWith("/provider") ||
     userText.startsWith("/start") ||
     userText.startsWith("/spec") ||
     userText.startsWith("/exit")
@@ -135,12 +160,13 @@ bot.on("message", async (msg) => {
   const rawFormat = userFormats.get(chatId) || "default";
   const format =
     rawFormat === "json" || rawFormat === "markdown" ? rawFormat : null;
+  const provider = userProviders.get(chatId) || "openai";
 
   try {
     const response = await fetch(`${process.env.API_URL}/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: context, format }),
+      body: JSON.stringify({ messages: context, format, provider }),
     });
 
     const data = await response.json();

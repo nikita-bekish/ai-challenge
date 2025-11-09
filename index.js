@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import OpenAI from "openai";
-import { generateCompletion_OpenAI } from "./providers/openaiProvider.js";
+import { generateCompletion } from "./providers/index.js";
 
 dotenv.config();
 
@@ -61,13 +61,15 @@ When all key sections are filled with sufficient detail (no placeholders like �
 });
 
 app.post("/ask", async (req, res) => {
-  const { messages, format = null } = req.body;
+  const { messages, format = null, provider = "openai" } = req.body;
 
   try {
-    const answer = await generateCompletion_OpenAI({
-      messages,
-      format,
-    });
+    const answer = await generateCompletion({ provider, messages, format });
+
+    // const answer = await generateCompletion_OpenAI({
+    //   messages,
+    //   format,
+    // });
     res.json({ answer });
   } catch (error) {
     console.error("❌ Ошибка в /ask:", error);
