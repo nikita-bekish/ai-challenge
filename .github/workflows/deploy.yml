@@ -27,6 +27,8 @@ jobs:
         run: |
           echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" > .env
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "IAM_TOKEN=${{ secrets.IAM_TOKEN }}" >> .env
+          echo "MODEL_URI=${{ secrets.MODEL_URI }}" >> .env
 
       - name: Debug SSH key
         run: |
