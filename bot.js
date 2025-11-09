@@ -5,6 +5,7 @@ import TelegramBot from "node-telegram-bot-api";
 // } else {
 //   dotenv.config({ path: ".env.dev" });
 // }
+dotenv.config();
 
 console.log("🚀 Запуск бота в режиме:", process.env.MODE || "development");
 
