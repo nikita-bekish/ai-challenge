@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import TelegramBot from "node-telegram-bot-api";
 
 // if (process.env.NODE_ENV === "production") {
