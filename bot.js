@@ -17,6 +17,7 @@ const userProviders = new Map(); // chatId → "openai" | "yandex"
 
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
+  const currentProvider = userProviders.get(chatId) || "openai";
 
   const welcomeMessage = `
 👋 Привет! Я бот с двумя режимами:
@@ -27,6 +28,8 @@ bot.onText(/\/start/i, (msg) => {
 - /format default
 
 2️⃣ *Режим ТЗ (/spec)* — создаёт структурированные документы (технические задания, спецификации и т.д.) с автоостановкой.
+
+Сейчас активен *${currentProvider.toUpperCase()}*.\n\nВведите /provider, чтобы изменить.
 
 Напиши /spec чтобы начать работу с ИИ-агентом для составления ТЗ.
 `;
@@ -77,27 +80,71 @@ bot.onText(/\/format(?:\s+(json|markdown|default))?/i, (msg, match) => {
   });
 });
 
-bot.onText(/\/provider(?:\s+(openai|yandex))?/i, (msg, match) => {
+bot.onText(/\/provider/i, (msg) => {
   const chatId = msg.chat.id;
-  const provider = match[1]?.toLowerCase();
+  const current = userProviders.get(chatId) || "openai";
 
-  if (!provider) {
-    const current = userProviders.get(chatId) || "openai";
-    return bot.sendMessage(
-      chatId,
-      `⚙️ Текущий провайдер: *${current.toUpperCase()}*\nДоступные: /provider openai | /provider yandex`,
-      { parse_mode: "Markdown" }
-    );
-  }
+  const buttons = {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: current === "openai" ? "✅ OpenAI (активен)" : "OpenAI",
+            callback_data: "set_provider_openai",
+          },
+          {
+            text: current === "yandex" ? "✅ YandexGPT (активен)" : "YandexGPT",
+            callback_data: "set_provider_yandex",
+          },
+        ],
+      ],
+    },
+  };
 
-  userProviders.set(chatId, provider);
-  bot.sendMessage(
-    chatId,
-    `✅ Провайдер установлен: *${provider.toUpperCase()}*`,
-    {
+  bot.sendMessage(chatId, `⚙️ Текущий провайдер: *${current.toUpperCase()}*`, {
+    parse_mode: "Markdown",
+    ...buttons,
+  });
+});
+
+bot.on("callback_query", (query) => {
+  const chatId = query.message.chat.id;
+  const data = query.data;
+
+  if (data === "set_provider_openai" || data === "set_provider_yandex") {
+    const provider = data.includes("openai") ? "openai" : "yandex";
+    userProviders.set(chatId, provider);
+
+    bot.answerCallbackQuery(query.id, {
+      text: `Провайдер изменён: ${provider.toUpperCase()}`,
+      show_alert: false,
+    });
+
+    const buttons = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: provider === "openai" ? "✅ OpenAI (активен)" : "OpenAI",
+              callback_data: "set_provider_openai",
+            },
+            {
+              text:
+                provider === "yandex" ? "✅ YandexGPT (активен)" : "YandexGPT",
+              callback_data: "set_provider_yandex",
+            },
+          ],
+        ],
+      },
+    };
+
+    bot.editMessageText(`⚙️ Текущий провайдер: *${provider.toUpperCase()}*`, {
+      chat_id: chatId,
+      message_id: query.message.message_id,
       parse_mode: "Markdown",
-    }
-  );
+      ...buttons,
+    });
+  }
 });
 
 bot.on("message", async (msg) => {
