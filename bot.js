@@ -11,7 +11,7 @@ console.log("🚀 Запуск бота в режиме:", process.env.MODE || "
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const memory = new Map(); // хранит временную историю сообщений в рамках одного диалога
-const userFormats = new Map(); // chatId → "json" | "markdown"
+const userFormats = new Map(); // chatId → "json" | "markdown" | "default"
 const userModes = new Map();
 
 bot.onText(/\/start/i, (msg) => {
@@ -23,6 +23,7 @@ bot.onText(/\/start/i, (msg) => {
 1️⃣ *Обычный режим* — задавай вопросы, выбирай формат:
 - /format json
 - /format markdown
+- /format default
 
 2️⃣ *Режим ТЗ (/spec)* — создаёт структурированные документы (технические задания, спецификации и т.д.) с автоостановкой.
 
@@ -47,14 +48,32 @@ bot.onText(/\/exit/i, (msg) => {
   bot.sendMessage(chatId, "🚪 Возврат в обычный режим общения.");
 });
 
-bot.onText(/\/format (json|markdown)/i, (msg, match) => {
+bot.onText(/\/format(?:\s+(json|markdown|default))?/i, (msg, match) => {
   const chatId = msg.chat.id;
-  const format = match[1].toLowerCase();
-  userFormats.set(chatId, format);
-  bot.sendMessage(
-    chatId,
-    `✅ Формат ответа установлен: ${format.toUpperCase()}`
-  );
+  const arg = match[1]?.toLowerCase();
+
+  if (!arg) {
+    const current = userFormats.get(chatId) || "default";
+    return bot.sendMessage(
+      chatId,
+      `ℹ️ Текущий формат: *${current.toUpperCase()}*
+Доступные варианты: /format json | /format markdown | /format default`,
+      { parse_mode: "Markdown" }
+    );
+  }
+
+  userFormats.set(chatId, arg);
+
+  const human =
+    arg === "json"
+      ? "JSON (строгий)"
+      : arg === "markdown"
+      ? "Markdown"
+      : "DEFAULT (свободный текст)";
+
+  bot.sendMessage(chatId, `✅ Формат ответа установлен: *${human}*`, {
+    parse_mode: "Markdown",
+  });
 });
 
 bot.on("message", async (msg) => {
@@ -113,7 +132,9 @@ bot.on("message", async (msg) => {
   const context = memory.get(chatId);
   context.push({ role: "user", content: userText });
 
-  const format = userFormats.get(chatId) || "json";
+  const rawFormat = userFormats.get(chatId) || "default";
+  const format =
+    rawFormat === "json" || rawFormat === "markdown" ? rawFormat : null;
 
   try {
     const response = await fetch(`${process.env.API_URL}/ask`, {
