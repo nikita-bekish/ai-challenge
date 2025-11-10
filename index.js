@@ -12,6 +12,40 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+app.post("/temperature", async (_, res) => {
+  const prompt =
+    "Придумай короткую историю (3 предложения) о роботе, который внезапно осознал себя.";
+
+  const temperatures = [0, 0.5, 1];
+
+  const answers = {};
+
+  try {
+    for (const temp of temperatures) {
+      const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: temp,
+        messages: [
+          { role: "system", content: "Ты — креативный рассказчик." },
+          { role: "user", content: prompt },
+        ],
+      });
+
+      const text = response.choices[0].message.content;
+      console.log(`\n=== TEMPERATURE: ${temp} ===\n${text}\n`);
+
+      answers[temp] = text;
+
+      // answers.push({ answer: `\n=== TEMPERATURE: ${temp} ===\n${text}\n` });
+    }
+
+    res.json({ answer: answers });
+  } catch (error) {
+    console.error("❌ Ошибка в /temperature:", error);
+    res.status(500).json({ error: "Ошибка при генерации ответа" });
+  }
+});
+
 app.post("/autonomous-agent", async (req, res) => {
   const { userMessages } = req.body;
 

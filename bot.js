@@ -1,12 +1,12 @@
 import dotenv from "dotenv";
 import TelegramBot from "node-telegram-bot-api";
 
-// if (process.env.NODE_ENV === "production") {
-//   dotenv.config({ path: ".env.prod" });
-// } else {
-//   dotenv.config({ path: ".env.dev" });
-// }
-dotenv.config();
+if (process.env.NODE_ENV === "development") {
+  dotenv.config({ path: ".env.dev" });
+} else {
+  dotenv.config();
+}
+//
 
 console.log("🚀 Запуск бота в режиме:", process.env.MODE || "development");
 
@@ -30,6 +30,8 @@ bot.onText(/\/start/i, (msg) => {
 
 2️⃣ *Режим ТЗ (/spec)* — создаёт структурированные документы (технические задания, спецификации и т.д.) с автоостановкой.
 
+3. Проверка температуры. /temp
+
 Сейчас активен *${currentProvider.toUpperCase()}*.\n\nВведите /provider, чтобы изменить.
 
 Напиши /spec чтобы начать работу с ИИ-агентом для составления ТЗ.
@@ -44,6 +46,15 @@ bot.onText(/\/spec/i, (msg) => {
   bot.sendMessage(
     chatId,
     "📄 Режим ТЗ активирован. Опиши проект, а я соберу все детали и создам готовый документ.\n\nОтправь /exit чтобы выйти из этого режима."
+  );
+});
+
+bot.onText(/\/temp/i, (msg) => {
+  const chatId = msg.chat.id;
+
+  bot.sendMessage(
+    chatId,
+    "Сейчас LLM продемонстрирует влияние параметра температуры на генерируемые ответы."
   );
 });
 
@@ -164,6 +175,40 @@ bot.on("message", async (msg) => {
 
   const mode = userModes.get(chatId) || "default";
   bot.sendChatAction(chatId, "typing");
+
+  if (userText.startsWith("/temp")) {
+    try {
+      const response = await fetch(`${process.env.API_URL}/temperature`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // body: JSON.stringify({ userMessages: context }),
+      });
+      const data = await response.json();
+      // const answer = data.answer || "⚠️ Нет ответа от модели";
+      const rawAnswers = data.answer || {};
+      let messageText = "";
+
+      for (const [temp, text] of Object.entries(rawAnswers)) {
+        messageText += `🔥 *Температура ${temp}*\n${text}\n\n`;
+      }
+
+      if (!messageText.trim()) {
+        messageText = "⚠️ Нет ответа от модели";
+      }
+      bot.sendMessage(chatId, messageText, { parse_mode: "Markdown" });
+
+      // если агент завершил работу — сбрасываем режим
+      // if (answer.includes("✅ Task complete. Stopping now")) {
+      //   // userModes.set(chatId, "default");
+      //   memory.delete(chatId);
+      // }
+    } catch (error) {
+      console.error(error);
+      bot.sendMessage(chatId, "🚨 Ошибка при обращении к серверу.");
+    }
+
+    return;
+  }
 
   if (mode === "spec") {
     // =========================
