@@ -35,8 +35,6 @@ app.post("/temperature", async (_, res) => {
       console.log(`\n=== TEMPERATURE: ${temp} ===\n${text}\n`);
 
       answers[temp] = text;
-
-      // answers.push({ answer: `\n=== TEMPERATURE: ${temp} ===\n${text}\n` });
     }
 
     res.json({ answer: answers });
