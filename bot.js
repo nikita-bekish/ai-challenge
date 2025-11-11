@@ -31,7 +31,7 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const memory = new Map(); // хранит временную историю сообщений в рамках одного диалога
 const userFormats = new Map(); // chatId → "json" | "markdown" | "default"
 const userModes = new Map();
-const userProviders = new Map(); // chatId → "openai" | "yandex" | "huggingface"
+const userProviders = new Map(); // chatId → "openai" | "yandex" | "stheno"
 
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
@@ -126,8 +126,12 @@ bot.onText(/\/provider/i, (msg) => {
             callback_data: "set_provider_yandex",
           },
           {
-            text: current === "huggingface" ? "✅ HuggingFace" : "HuggingFace",
-            callback_data: "set_provider_huggingface",
+            text: current === "stheno" ? "✅ Stheno" : "Stheno",
+            callback_data: "set_provider_stheno",
+          },
+          {
+            text: current === "kimi" ? "✅ Kimi" : "Kimi",
+            callback_data: "set_provider_kimi",
           },
         ],
       ],
@@ -166,9 +170,12 @@ bot.on("callback_query", (query) => {
               callback_data: "set_provider_yandex",
             },
             {
-              text:
-                provider === "huggingface" ? "✅ HuggingFace" : "HuggingFace",
-              callback_data: "set_provider_huggingface",
+              text: provider === "stheno" ? "✅ Stheno" : "Stheno",
+              callback_data: "set_provider_stheno",
+            },
+            {
+              text: provider === "kimi" ? "✅ Kimi" : "Kimi",
+              callback_data: "set_provider_kimi",
             },
           ],
         ],
