@@ -1,6 +1,23 @@
 import dotenv from "dotenv";
 import TelegramBot from "node-telegram-bot-api";
 
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("🚨 [unhandledRejection] Необработанное исключение в промисе:");
+  console.error(reason);
+});
+
+// Ошибки, которые не были пойманы (throw без try/catch)
+process.on("uncaughtException", (err) => {
+  console.error("💥 [uncaughtException] Необработанная ошибка:", err);
+  // желательно завершать процесс, чтобы не зависнуть в невалидном состоянии
+  process.exit(1);
+});
+
+// Ошибки из Node.js API (например, ECONNRESET)
+process.on("uncaughtExceptionMonitor", (err) => {
+  console.warn("⚠️ [uncaughtExceptionMonitor]:", err.message);
+});
+
 if (process.env.NODE_ENV === "development") {
   dotenv.config({ path: ".env.dev" });
 } else {
@@ -14,7 +31,7 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const memory = new Map(); // хранит временную историю сообщений в рамках одного диалога
 const userFormats = new Map(); // chatId → "json" | "markdown" | "default"
 const userModes = new Map();
-const userProviders = new Map(); // chatId → "openai" | "yandex"
+const userProviders = new Map(); // chatId → "openai" | "yandex" | "huggingface"
 
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
@@ -101,12 +118,16 @@ bot.onText(/\/provider/i, (msg) => {
       inline_keyboard: [
         [
           {
-            text: current === "openai" ? "✅ OpenAI (активен)" : "OpenAI",
+            text: current === "openai" ? "✅ OpenAI" : "OpenAI",
             callback_data: "set_provider_openai",
           },
           {
-            text: current === "yandex" ? "✅ YandexGPT (активен)" : "YandexGPT",
+            text: current === "yandex" ? "✅ YandexGPT" : "YandexGPT",
             callback_data: "set_provider_yandex",
+          },
+          {
+            text: current === "huggingface" ? "✅ HuggingFace" : "HuggingFace",
+            callback_data: "set_provider_huggingface",
           },
         ],
       ],
@@ -123,8 +144,8 @@ bot.on("callback_query", (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
 
-  if (data === "set_provider_openai" || data === "set_provider_yandex") {
-    const provider = data.includes("openai") ? "openai" : "yandex";
+  if (data.startsWith("set_provider_")) {
+    const provider = data.replace("set_provider_", "");
     userProviders.set(chatId, provider);
 
     bot.answerCallbackQuery(query.id, {
@@ -137,13 +158,17 @@ bot.on("callback_query", (query) => {
         inline_keyboard: [
           [
             {
-              text: provider === "openai" ? "✅ OpenAI (активен)" : "OpenAI",
+              text: provider === "openai" ? "✅ OpenAI" : "OpenAI",
               callback_data: "set_provider_openai",
             },
             {
-              text:
-                provider === "yandex" ? "✅ YandexGPT (активен)" : "YandexGPT",
+              text: provider === "yandex" ? "✅ YandexGPT" : "YandexGPT",
               callback_data: "set_provider_yandex",
+            },
+            {
+              text:
+                provider === "huggingface" ? "✅ HuggingFace" : "HuggingFace",
+              callback_data: "set_provider_huggingface",
             },
           ],
         ],
@@ -196,12 +221,6 @@ bot.on("message", async (msg) => {
         messageText = "⚠️ Нет ответа от модели";
       }
       bot.sendMessage(chatId, messageText, { parse_mode: "Markdown" });
-
-      // если агент завершил работу — сбрасываем режим
-      // if (answer.includes("✅ Task complete. Stopping now")) {
-      //   // userModes.set(chatId, "default");
-      //   memory.delete(chatId);
-      // }
     } catch (error) {
       console.error(error);
       bot.sendMessage(chatId, "🚨 Ошибка при обращении к серверу.");
@@ -264,10 +283,12 @@ bot.on("message", async (msg) => {
 
     const data = await response.json();
     const answer = data.answer || "⚠️ Нет ответа от модели";
+    console.log("nik answer", answer);
 
     bot.sendMessage(chatId, answer, {
       parse_mode: format === "markdown" ? "Markdown" : undefined,
     });
+    //safeSend(bot, chatId, answer, { parse_mode: "Markdown" });
 
     // добавляем ответ в контекст
     context.push({ role: "assistant", content: answer });
@@ -283,3 +304,25 @@ bot.on("message", async (msg) => {
 });
 
 console.log("🤖 Бот с режимом ТЗ запущен!");
+
+// function safeSend(bot, chatId, message, options = {}) {
+//   if (!message || typeof message !== "string" || !message.trim()) {
+//     console.error("⚠️ Пустое сообщение в safeSend:", message);
+//     return bot.sendMessage(
+//       chatId,
+//       "⚠️ Ошибка: пустой ответ или неверный формат."
+//     );
+//   }
+
+//   if (message.length > 4000) {
+//     message =
+//       message.slice(0, 3900) + "\n\n⚠️ Ответ сокращён (слишком длинный)";
+//   }
+
+//   try {
+//     return bot.sendMessage(chatId, message, options);
+//   } catch (err) {
+//     console.error("❌ Ошибка при отправке в Telegram:", err.message);
+//     console.log("➡️ Исходное сообщение:", message);
+//   }
+// }

@@ -6,6 +6,7 @@ dotenv.config();
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function generateCompletion_OpenAI({ messages, format }) {
+  const start = Date.now();
   const systemByFormat = {
     json: `You are a professional AI that always responds in strict JSON format.
 Do not include explanations or markdown.
@@ -41,5 +42,16 @@ Do not include JSON or extra commentary.`,
     messages: payload,
   });
 
-  return resp.choices[0].message.content;
+  const end = Date.now();
+  const duration = ((end - start) / 1000).toFixed(2);
+
+  const tokens = resp.usage?.total_tokens ?? "N/A";
+
+  const result = `🧠 Модель: gpt-4o-mini
+⏱ Время: ${duration}s
+🧮 Токены: ${tokens}
+
+💬 ${resp.choices[0].message.content}`;
+  return result;
+  // return resp.choices[0].message.content;
 }
