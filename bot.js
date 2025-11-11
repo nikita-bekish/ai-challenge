@@ -138,10 +138,14 @@ bot.onText(/\/provider/i, (msg) => {
     },
   };
 
-  bot.sendMessage(chatId, `⚙️ Текущий провайдер: *${current.toUpperCase()}*`, {
-    parse_mode: "Markdown",
-    ...buttons,
-  });
+  bot.sendMessage(
+    chatId,
+    `⚙️ Текущий провайдер: gi*${current.toUpperCase()}*`,
+    {
+      parse_mode: "Markdown",
+      ...buttons,
+    }
+  );
 });
 
 bot.on("callback_query", (query) => {
