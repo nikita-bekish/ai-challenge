@@ -34,10 +34,7 @@ export async function generateCompletion_Kimi({ messages }) {
 💬 ${answer}`;
     return result;
   } catch (error) {
-    console.error("❌ Ошибка Hugging Face Router:", error.message);
-    return {
-      text: "⚠️ Ошибка при обращении к Hugging Face Router.",
-      metrics: { model: "HuggingFace Router", duration: 0, tokens: "N/A" },
-    };
+    console.error("❌ Ошибка moonshotai/Kimi-K2-Thinking:", error.message);
+    return `⚠️ Ошибка при обращении к moonshotai/Kimi-K2-Thinking`;
   }
 }

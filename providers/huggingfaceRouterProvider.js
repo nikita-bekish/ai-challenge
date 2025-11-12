@@ -21,8 +21,6 @@ export async function generateCompletion_HuggingFaceRouter({ messages }) {
       messages,
     });
 
-    console.log("nik response", response.choices[0].message.content);
-
     const end = Date.now();
     const duration = ((end - start) / 1000).toFixed(2);
 
@@ -36,10 +34,7 @@ export async function generateCompletion_HuggingFaceRouter({ messages }) {
 💬 ${answer}`;
     return result;
   } catch (error) {
-    console.error("❌ Ошибка Hugging Face Router:", error.message);
-    return {
-      text: "⚠️ Ошибка при обращении к Hugging Face Router.",
-      metrics: { model: "HuggingFace Router", duration: 0, tokens: "N/A" },
-    };
+    console.error("❌ Ошибка Sao10K/L3-8B-Stheno-v3.2:", error.message);
+    return `⚠️ Ошибка при обращении к Sao10K/L3-8B-Stheno-v3.2`;
   }
 }
