@@ -30,6 +30,7 @@ jobs:
           echo "IAM_TOKEN=${{ secrets.IAM_TOKEN }}" >> .env
           echo "MODEL_URI=${{ secrets.MODEL_URI }}" >> .env
           echo "API_URL=${{ secrets.API_URL }}" >> .env
+          echo "HF_API_TOKEN=${{ secrets.HF_API_TOKEN }}" >> .env
 
       - name: Debug SSH key
         run: |
