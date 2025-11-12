@@ -1,7 +1,7 @@
-import dotenv from "dotenv";
+//import dotenv from "dotenv";
 import OpenAI from "openai";
 
-dotenv.config();
+//dotenv.config();
 
 const hfClient = new OpenAI({
   baseURL: "https://router.huggingface.co/v1",

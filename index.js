@@ -1,9 +1,10 @@
-import dotenv from "dotenv";
+import "./config/env.js"; // 👈 первым, чтобы env подгрузился до остального
+//import dotenv from "dotenv";
 import express from "express";
 import OpenAI from "openai";
 import { generateCompletion } from "./providers/index.js";
 
-dotenv.config();
+//dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -98,10 +99,6 @@ app.post("/ask", async (req, res) => {
   try {
     const answer = await generateCompletion({ provider, messages, format });
 
-    // const answer = await generateCompletion_OpenAI({
-    //   messages,
-    //   format,
-    // });
     res.json({ answer });
   } catch (error) {
     console.error("❌ Ошибка в /ask:", error);

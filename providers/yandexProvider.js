@@ -1,6 +1,6 @@
-import dotenv from "dotenv";
+// import dotenv from "dotenv";
 
-dotenv.config();
+// dotenv.config();
 
 export async function generateCompletion_Yandex({ messages }) {
   try {

@@ -1,7 +1,7 @@
-import dotenv from "dotenv";
+//import dotenv from "dotenv";
 import OpenAI from "openai";
 
-dotenv.config();
+// dotenv.config();
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -40,16 +40,16 @@ Do not include JSON or extra commentary.`,
     model: "gpt-4o-mini",
     temperature: 0,
     messages: payload,
+    max_completion_tokens: 2048,
   });
 
   const end = Date.now();
   const duration = ((end - start) / 1000).toFixed(2);
 
-  const tokens = resp.usage?.total_tokens ?? "N/A";
-
   const result = `🧠 Модель: gpt-4o-mini
 ⏱ Время: ${duration}s
-🧮 Токены: ${tokens}
+🧮 Промпт токены: ${resp.usage?.prompt_tokens ?? "N/A"}
+🧮 Сгенерированные токены: ${resp.usage?.completion_tokens ?? "N/A"}
 
 💬 ${resp.choices[0].message.content}`;
   return result;

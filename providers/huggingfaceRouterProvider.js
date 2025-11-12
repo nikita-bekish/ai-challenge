@@ -1,22 +1,16 @@
-import dotenv from "dotenv";
 import OpenAI from "openai";
-
-dotenv.config();
 
 const hfClient = new OpenAI({
   baseURL: "https://router.huggingface.co/v1",
   apiKey: process.env.HF_API_TOKEN,
 });
 
-/**
- * Универсальная функция генерации ответов через Hugging Face Router
- */
 export async function generateCompletion_HuggingFaceRouter({ messages }) {
   const start = Date.now();
 
   try {
     const response = await hfClient.chat.completions.create({
-      model: "Sao10K/L3-8B-Stheno-v3.2:novita",
+      model: "HuggingFaceH4/zephyr-7b-beta",
       temperature: 0.7,
       messages,
     });
@@ -27,14 +21,15 @@ export async function generateCompletion_HuggingFaceRouter({ messages }) {
     const answer = response.choices[0].message.content;
     const tokens = response.usage?.total_tokens ?? "N/A";
 
-    const result = `🧠 Модель: Sao10K/L3-8B-Stheno-v3.2:novita
-⏱ Время: ${duration}s
-🧮 Токены: ${tokens}
+    const result = `🧠 Модель: Xenova/gpt-3.5-turbo
+                    ⏱ Время: ${duration}s
+                    🧮 Токены: ${tokens}
 
-💬 ${answer}`;
+                    💬 ${answer}
+                    `;
     return result;
   } catch (error) {
-    console.error("❌ Ошибка Sao10K/L3-8B-Stheno-v3.2:", error.message);
+    console.error("❌ Ошибка Xenova/gpt-3.5-turbo:", error.message);
     return `⚠️ Ошибка при обращении к Sao10K/L3-8B-Stheno-v3.2`;
   }
 }

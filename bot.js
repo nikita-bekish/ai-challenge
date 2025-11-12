@@ -23,7 +23,6 @@ if (process.env.NODE_ENV === "development") {
 } else {
   dotenv.config();
 }
-//
 
 console.log("🚀 Запуск бота в режиме:", process.env.MODE || "development");
 
@@ -294,7 +293,6 @@ bot.on("message", async (msg) => {
 
     const data = await response.json();
     const answer = data.answer || "⚠️ Нет ответа от модели";
-    console.log("nik answer", answer);
 
     // bot.sendMessage(chatId, answer, {
     //   parse_mode: format === "markdown" ? "Markdown" : undefined,

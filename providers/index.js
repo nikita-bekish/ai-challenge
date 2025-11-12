@@ -15,8 +15,4 @@ export async function generateCompletion({ provider, messages, format }) {
     default:
       return await generateCompletion_OpenAI({ messages, format });
   }
-  if (provider === "yandex") {
-    return await generateCompletion_Yandex({ messages });
-  }
-  return await generateCompletion_OpenAI({ messages, format });
 }
