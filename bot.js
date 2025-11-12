@@ -296,10 +296,10 @@ bot.on("message", async (msg) => {
     const answer = data.answer || "⚠️ Нет ответа от модели";
     console.log("nik answer", answer);
 
-    bot.sendMessage(chatId, answer, {
-      parse_mode: format === "markdown" ? "Markdown" : undefined,
-    });
-    //safeSend(bot, chatId, answer, { parse_mode: "Markdown" });
+    // bot.sendMessage(chatId, answer, {
+    //   parse_mode: format === "markdown" ? "Markdown" : undefined,
+    // });
+    safeSend(bot, chatId, answer, { parse_mode: "Markdown" });
 
     // добавляем ответ в контекст
     context.push({ role: "assistant", content: answer });
@@ -316,24 +316,24 @@ bot.on("message", async (msg) => {
 
 console.log("🤖 Бот с режимом ТЗ запущен!");
 
-// function safeSend(bot, chatId, message, options = {}) {
-//   if (!message || typeof message !== "string" || !message.trim()) {
-//     console.error("⚠️ Пустое сообщение в safeSend:", message);
-//     return bot.sendMessage(
-//       chatId,
-//       "⚠️ Ошибка: пустой ответ или неверный формат."
-//     );
-//   }
+function safeSend(bot, chatId, message, options = {}) {
+  if (!message || typeof message !== "string" || !message.trim()) {
+    console.error("⚠️ Пустое сообщение в safeSend:", message);
+    return bot.sendMessage(
+      chatId,
+      "⚠️ Ошибка: пустой ответ или неверный формат."
+    );
+  }
 
-//   if (message.length > 4000) {
-//     message =
-//       message.slice(0, 3900) + "\n\n⚠️ Ответ сокращён (слишком длинный)";
-//   }
+  if (message.length > 4000) {
+    message =
+      message.slice(0, 3900) + "\n\n⚠️ Ответ сокращён (слишком длинный)";
+  }
 
-//   try {
-//     return bot.sendMessage(chatId, message, options);
-//   } catch (err) {
-//     console.error("❌ Ошибка при отправке в Telegram:", err.message);
-//     console.log("➡️ Исходное сообщение:", message);
-//   }
-// }
+  try {
+    return bot.sendMessage(chatId, message, options);
+  } catch (err) {
+    console.error("❌ Ошибка при отправке в Telegram:", err.message);
+    console.log("➡️ Исходное сообщение:", message);
+  }
+}
