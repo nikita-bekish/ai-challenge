@@ -53,5 +53,4 @@ Do not include JSON or extra commentary.`,
 
 💬 ${resp.choices[0].message.content}`;
   return result;
-  // return resp.choices[0].message.content;
 }
