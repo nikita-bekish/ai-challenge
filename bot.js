@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import TelegramBot from "node-telegram-bot-api";
+import DialogHistory from "./dialogHistory.js";
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("🚨 [unhandledRejection] Необработанное исключение в промисе:");
@@ -27,7 +28,7 @@ if (process.env.NODE_ENV === "development") {
 console.log("🚀 Запуск бота в режиме:", process.env.MODE || "development");
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
-const memory = new Map(); // хранит временную историю сообщений в рамках одного диалога
+const dialogHistory = new DialogHistory(); // управляет историей диалога с summary
 const userFormats = new Map(); // chatId → "json" | "markdown" | "default"
 const userModes = new Map();
 const userProviders = new Map(); // chatId → "openai" | "yandex" | "stheno"
@@ -243,15 +244,15 @@ bot.on("message", async (msg) => {
     // =========================
     // РЕЖИМ СОСТАВЛЕНИЯ ТЗ
     // =========================
-    const context = memory.get(chatId) || [];
-    context.push({ role: "user", content: userText });
-    memory.set(chatId, context);
+    dialogHistory.addUserMessage(chatId, userText);
 
     try {
       const response = await fetch(`${process.env.API_URL}/autonomous-agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userMessages: context }),
+        body: JSON.stringify({
+          userMessages: dialogHistory.conversations.get(chatId)?.messages || [],
+        }),
       });
       const data = await response.json();
       const answer = data.answer || "⚠️ Нет ответа от модели";
@@ -261,7 +262,7 @@ bot.on("message", async (msg) => {
       // если агент завершил работу — сбрасываем режим
       if (answer.includes("✅ Task complete. Stopping now")) {
         userModes.set(chatId, "default");
-        memory.delete(chatId);
+        dialogHistory.clearConversation(chatId);
       }
     } catch (error) {
       console.error(error);
@@ -275,9 +276,7 @@ bot.on("message", async (msg) => {
   // ОБЫЧНЫЙ РЕЖИМ
   // =========================
 
-  if (!memory.has(chatId)) memory.set(chatId, []);
-  const context = memory.get(chatId);
-  context.push({ role: "user", content: userText });
+  const shouldCreateSummary = dialogHistory.addUserMessage(chatId, userText);
 
   const rawFormat = userFormats.get(chatId) || "default";
   const format =
@@ -288,7 +287,11 @@ bot.on("message", async (msg) => {
     const response = await fetch(`${process.env.API_URL}/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: context, format, provider }),
+      body: JSON.stringify({
+        messages: dialogHistory.getContextForOpenAI(chatId),
+        format,
+        provider,
+      }),
     });
 
     const data = await response.json();
@@ -300,11 +303,15 @@ bot.on("message", async (msg) => {
     safeSend(bot, chatId, answer, { parse_mode: "Markdown" });
 
     // добавляем ответ в контекст
-    context.push({ role: "assistant", content: answer });
+    dialogHistory.addAssistantMessage(chatId, answer);
 
-    // при необходимости ограничиваем длину истории
-    if (context.length > 10) {
-      context.splice(0, context.length - 10); // храним только последние 10 сообщений
+    // Создаем summary если достигнут порог
+    if (shouldCreateSummary) {
+      console.log(`📝 Creating summary for chat ${chatId}...`);
+      const summary = await dialogHistory.createSummary(chatId);
+      if (summary) {
+        console.log(`✅ Summary created: ${summary.substring(0, 100)}...`);
+      }
     }
   } catch (error) {
     console.error(error);

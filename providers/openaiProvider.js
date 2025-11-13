@@ -1,4 +1,5 @@
 //import dotenv from "dotenv";
+import * as tokenizer from "gpt-tokenizer";
 import OpenAI from "openai";
 
 // dotenv.config();
@@ -7,6 +8,13 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function generateCompletion_OpenAI({ messages, format }) {
   const start = Date.now();
+
+  // Подсчитываем токены входных сообщений
+  const inputText = messages
+    .map((msg) => `${msg.role}: ${msg.content}`)
+    .join("\n");
+  const inputTokens = tokenizer.encode(inputText).length;
+
   const systemByFormat = {
     json: `You are a professional AI that always responds in strict JSON format.
 Do not include explanations or markdown.
@@ -36,6 +44,12 @@ Do not include JSON or extra commentary.`,
     ? [{ role: "system", content: systemPrompt }, ...messages]
     : messages;
 
+  // Подсчитываем токены system prompt если он есть
+  let systemPromptTokens = 0;
+  if (systemPrompt) {
+    systemPromptTokens = tokenizer.encode(systemPrompt).length;
+  }
+
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0,
@@ -46,10 +60,29 @@ Do not include JSON or extra commentary.`,
   const end = Date.now();
   const duration = ((end - start) / 1000).toFixed(2);
 
-  const result = `🧠 Модель: gpt-4o-mini
+  // Определяем, используется ли summary в диалоге
+  const hasSummary = messages.some(
+    (msg) =>
+      msg.role === "system" &&
+      msg.content.includes("Предыдущий контекст разговора (summary)")
+  );
+  const summaryStatus = hasSummary ? "📝 С SUMMARY" : "📋 БЕЗ SUMMARY";
+
+  const totalInputTokens = inputTokens + systemPromptTokens;
+  const openaiPromptTokens = resp.usage?.prompt_tokens ?? 0;
+  const completionTokens = resp.usage?.completion_tokens ?? 0;
+
+  const result = `${summaryStatus}
+🧠 Модель: gpt-4o-mini
 ⏱ Время: ${duration}s
-🧮 Промпт токены: ${resp.usage?.prompt_tokens ?? "N/A"}
-🧮 Сгенерированные токены: ${resp.usage?.completion_tokens ?? "N/A"}
+
+📊 СТАТИСТИКА ТОКЕНОВ:
+  💭 Входные сообщения: ${inputTokens}
+  🔧 System prompt: ${systemPromptTokens}
+  📝 Общий вход: ${totalInputTokens}
+  🧮 OpenAI промпт: ${openaiPromptTokens}
+  ✍️ Сгенерированные: ${completionTokens}
+  📈 Общий расход: ${openaiPromptTokens + completionTokens}
 
 💬 ${resp.choices[0].message.content}`;
   return result;
