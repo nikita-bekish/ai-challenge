@@ -29,6 +29,44 @@ console.log("🚀 Запуск бота в режиме:", process.env.MODE || "
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const dialogHistory = new DialogHistory(); // управляет историей диалога с summary
+
+// Ждем инициализации DialogHistory
+const waitForInitialization = async () => {
+  while (!dialogHistory.initialized) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  console.log("✅ DialogHistory инициализирован, бот готов к работе");
+
+  // Показать статистику памяти после инициализации
+  const memoryStats = dialogHistory.getMemoryStats();
+  console.log("📊 Статистика памяти:", memoryStats);
+};
+
+// Запускаем ожидание инициализации
+waitForInitialization().catch(console.error);
+
+// Graceful shutdown - сохранить данные перед выходом
+const gracefulShutdown = async (signal) => {
+  console.log(`\n🛑 Получен сигнал ${signal}. Начинаем graceful shutdown...`);
+
+  try {
+    await dialogHistory.shutdown();
+    console.log("✅ Данные DialogHistory сохранены");
+
+    bot.stopPolling();
+    console.log("✅ Telegram бот остановлен");
+
+    console.log("👋 Graceful shutdown завершен");
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Ошибка при graceful shutdown:", error);
+    process.exit(1);
+  }
+};
+
+// Обработка сигналов завершения
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 const userFormats = new Map(); // chatId → "json" | "markdown" | "default"
 const userModes = new Map();
 const userProviders = new Map(); // chatId → "openai" | "yandex" | "stheno"
@@ -262,7 +300,7 @@ bot.on("message", async (msg) => {
       // если агент завершил работу — сбрасываем режим
       if (answer.includes("✅ Task complete. Stopping now")) {
         userModes.set(chatId, "default");
-        dialogHistory.clearConversation(chatId);
+        dialogHistory.clearConversation(chatId.toString());
       }
     } catch (error) {
       console.error(error);
@@ -276,7 +314,10 @@ bot.on("message", async (msg) => {
   // ОБЫЧНЫЙ РЕЖИМ
   // =========================
 
-  const shouldCreateSummary = dialogHistory.addUserMessage(chatId, userText);
+  const shouldCreateSummary = dialogHistory.addUserMessage(
+    chatId.toString(),
+    userText
+  );
 
   const rawFormat = userFormats.get(chatId) || "default";
   const format =
@@ -288,7 +329,7 @@ bot.on("message", async (msg) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: dialogHistory.getContextForOpenAI(chatId),
+        messages: dialogHistory.getContextForOpenAI(chatId.toString()),
         format,
         provider,
       }),
@@ -303,7 +344,7 @@ bot.on("message", async (msg) => {
     safeSend(bot, chatId, answer, { parse_mode: "Markdown" });
 
     // добавляем ответ в контекст
-    dialogHistory.addAssistantMessage(chatId, answer);
+    dialogHistory.addAssistantMessage(chatId.toString(), answer);
 
     // Создаем summary если достигнут порог
     if (shouldCreateSummary) {
